@@ -16,42 +16,21 @@ using namespace std::chrono;
     bool led;
 #endif
 
-InterruptIn sw(BUTTON1);
+Ticker flipper;
 
-
-Timer t;
-long long unsigned int count_time;
-volatile char flag = 0;
-
-void start()
+void flip()
 {
-    led = 1;
-    t.start();
-}
-
-void stop()
-{
-    led = 0;
-    t.stop();
-    count_time = duration_cast<milliseconds>(t.elapsed_time()).count();
-    t.reset();
-    flag = 1;
+    led = !led;
 }
 
 int main()
 {
-    sw.rise(&start);
-    sw.fall(&stop);
-
     printf("begin\n");
 
-    while (true) {
-        if (flag == 1)
-        {
-            printf("temps appuie:%llu ms\n", count_time);   
-            flag = 0;
-        }
-                     
+    flipper.attach(&flip, 0.5);
+
+    while (1) {
+
         ThisThread::sleep_for(BLINKING_RATE);
     }
 }
