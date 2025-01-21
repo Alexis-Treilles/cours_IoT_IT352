@@ -3,10 +3,48 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "mbed.h"
+ /*
+ Dust sensor:
+    UART :
+        UART1_TX (pin 69)
+        UART1_RX (pin 71)
 
-// Blinking rate in milliseconds
-#define BLINKING_RATE     500ms
+        baud rate: 9600, 
+        databits: 8, 
+        stopbits: 1, 
+        parity: no
+ 
+        Etape de lecture:
+
+                |HEAD   |LEN    |CMD    |Data       |CS                           |
+        --------+-------+-------+-------+-----------+--------------------------
+Start : send    | 0x68  | 0x01  | 0x01  | NA        | ((65536-(HEAD+LEN+CMD+DATA))| 
+        receive |               0xA5A5                                        | Reponse ok
+        receive |               0x9696                                        | Reponse ko
+        --------+-------+-------+-------+-----------+--------------------------
+end   : send    | 0x68  | 0x01  | 0x02  | NA        | ((65536-(HEAD+LEN+CMD+DATA)) 
+        receive |               0xA5A5                                        | Reponse ok
+        receive |               0x9696                                        | Reponse ko
+        --------+-------+-------+-------+-----------+--------------------------
+read  : send    | 0x68  | 0x01  | 0x04  | NA        | ((65536-(HEAD+LEN+CMD+DATA))|
+        receive | 0x40  | 0x05  | 0x04  | "DF1, DF2,| ((65536-(HEAD+LEN+CMD+DATA))| Reponse ok
+                                        |  DF3, DF4 |_______________
+                                        |  PM2.5 = DF1 * 256 + DF2 |
+                                        |  PM10 = DF3 * 256 + DF4" |   
+        receive |               0X9696                                        | Reponse ko
+        
+       
+
+ */
+
+#include "mbed.h"
+#include "mbed_honeywell-hpma115/hpma115/hpma115.h"
+
+
+#define wait     500ms
+#define MAXIMUM_BUFFER_SIZE  32
+
+using namespace sixtron;
 using namespace std::chrono;
 
 // Initialise the digital pin LED1 as an output
@@ -16,54 +54,33 @@ using namespace std::chrono;
     bool led;
 #endif
 
-InterruptIn sw(BUTTON1);
-
-Ticker flipper;
-float freq_count = 5;
-char flag = 0;
-
-void incr_count()
-{
-    flag = 1;
-    if(freq_count <= 0.5)
-        freq_count = 5;
-    else
-        freq_count -= 0.5;
-}
-
-void flip()
-{
-    led = !led;
-}
+static hpma115_data_t data;
 
 int main()
 {
-    sw.rise(&incr_count);
+    HPMA115::ErrorType err;
 
-    printf("begin\n\r");
+    HPMA115 sensor(P1_UART_TX, P1_UART_RX);
 
-    flipper.attach(&flip, freq_count);
+    printf("\n\n------------\nHPMA115 test\n");
 
-    while (1) {
-        if(flag)
-        {
-            printf("freq: %d*e-1 s\n\r", (int)(freq_count*10.0)); //ne prend pas en charge %f donc ecriture scientifique.
-            flag = 0;
-            flipper.attach(&flip, freq_count);
+    err = sensor.set_adjust_coef(100);
+    assert(err == HPMA115::ErrorType::Ok);
+
+    err = sensor.start_measurement();
+    assert(err == HPMA115::ErrorType::Ok);
+
+    while (true) {
+        led = !led;
+        err = sensor.read_measurement(&data);
+        if (err == HPMA115::ErrorType::Ok) {
+            printf("Data: ");
+            if (data.pm1_pm4_valid) {
+                printf("PM1.0: %d, PM4.0: %d ", data.pm1_0, data.pm4_0);
+            }
+            printf("PM10: %d, PM2.5: %d\n", data.pm10, data.pm2_5);
         }
-        ThisThread::sleep_for(BLINKING_RATE);
+
+        ThisThread::sleep_for(wait);
     }
 }
-
-/*
-output:
-begin
-freq: 40*e-1 s
-freq: 35*e-1 s
-freq: 30*e-1 s
-freq: 25*e-1 s
-freq: 20*e-1 s
-freq: 10*e-1 s
-freq: 5*e-1 s
-freq: 50*e-1 s
-*/
