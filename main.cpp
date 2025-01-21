@@ -16,7 +16,20 @@ using namespace std::chrono;
     bool led;
 #endif
 
+InterruptIn sw(BUTTON1);
+
 Ticker flipper;
+float freq_count = 5;
+char flag = 0;
+
+void incr_count()
+{
+    flag = 1;
+    if(freq_count <= 0.5)
+        freq_count = 5;
+    else
+        freq_count -= 0.5;
+}
 
 void flip()
 {
@@ -25,18 +38,32 @@ void flip()
 
 int main()
 {
-    printf("begin\n");
+    sw.rise(&incr_count);
 
-    flipper.attach(&flip, 0.5);
+    printf("begin\n\r");
+
+    flipper.attach(&flip, freq_count);
 
     while (1) {
-
+        if(flag)
+        {
+            printf("freq: %d*e-1 s\n\r", (int)(freq_count*10.0)); //ne prend pas en charge %f donc ecriture scientifique.
+            flag = 0;
+            flipper.attach(&flip, freq_count);
+        }
         ThisThread::sleep_for(BLINKING_RATE);
     }
 }
 
-/* output:
+/*
+output:
 begin
-temps appuie:145 ms
-
+freq: 40*e-1 s
+freq: 35*e-1 s
+freq: 30*e-1 s
+freq: 25*e-1 s
+freq: 20*e-1 s
+freq: 10*e-1 s
+freq: 5*e-1 s
+freq: 50*e-1 s
 */
