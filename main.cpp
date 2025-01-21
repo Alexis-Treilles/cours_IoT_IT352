@@ -21,6 +21,7 @@ int main()
 
     while (true) {
         led = !led;
+        printf("hello world\n");
         ThisThread::sleep_for(BLINKING_RATE);
     }
 }
