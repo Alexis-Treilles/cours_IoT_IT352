@@ -19,9 +19,21 @@ int main()
     bool led;
 #endif
 
+    DigitalIn sw(BUTTON1);
+
+    // check mypin object is initialized and connected to a pin
+    if (sw.is_connected()) {
+        printf("mypin is connected and initialized! \n\r");
+    }
+
+    // Optional: set mode as PullUp/PullDown/PullNone/OpenDrain
+    sw.mode(PullUp);
+
+    printf("begin\n");
+
     while (true) {
-        led = !led;
-        printf("hello world\n");
+        printf("mypin has value : %d \n\r", sw.read());
+        led = sw.read();
         ThisThread::sleep_for(BLINKING_RATE);
     }
 }
